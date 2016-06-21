@@ -1,4 +1,4 @@
 name: jenkins-slave
 summary: Interface for relating a Jenkins slave to a Jankins master
 version: 1
-maintainer: "Free Ekanayaka <free.ekanayaka@canonical.com>"
+maintainer: Free Ekanayaka <free.ekanayaka@canonical.com>
