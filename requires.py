@@ -1,4 +1,5 @@
 #!/usr/bin/python
+
 from charmhelpers.core.hookenv import (
     unit_get,
     remote_unit,
@@ -14,7 +15,8 @@ from charms.reactive import RelationBase
 from charms.reactive import hook
 from charms.reactive import scopes
 
-from master import Master
+from jenkinslib.credentials import Credentials
+from jenkinslib.nodes import Nodes
 
 
 class JenkinsMaster(RelationBase):
@@ -24,20 +26,21 @@ class JenkinsMaster(RelationBase):
     def joined(self):
         """Indicate the relation is connected and communicate our URL."""
         address = unit_get("private-address")
-        log("Setting url relation to http://%s:8080" % address, level=DEBUG)
+        log("Setting url relation to http://%s:8080" % address)
         relation_set(url="http://%s:8080" % address)
 
-        self.set_state('{relation_name}.connected')
+        # Export credentials to the slave so it can download
+        # slave-agent.jnlp from the master.
+        log("Setting relation credentials")
+        credentials = Credentials()
+        relation_set(username=credentials.username())
+        relation_set(password=credentials.password())
+
+        self.set_state("{relation_name}.connected")
 
     @hook("{requires:jenkins-slave}-relation-{changed}")
     def changed(self):
         """If the relation data is set, indicate the relation is available."""
-        # Once we have the password, export credentials to the slave so it can
-        # download slave-agent.jnlp from the master.
-        master = Master()
-        relation_set(username=master.username())
-        relation_set(password=master.password())
-
         required_settings = ["executors", "labels", "slavehost"]
         settings = relation_get()
         missing = [s for s in required_settings if s not in settings]
@@ -47,19 +50,14 @@ class JenkinsMaster(RelationBase):
             return
 
         slavehost = settings["slavehost"]
-        executors = settings["executors"]
-        labels = settings["labels"]
 
         # Double check to see if this has happened yet
         if "x%s" % (slavehost) == "x":
             log("Slave host not yet defined - skipping", level=INFO)
             return
 
-        log("Adding slave with hostname %s." % slavehost, level=DEBUG)
-        master.add_node(slavehost, executors, labels=labels)
-        log("Node slave %s added." % (slavehost), level=DEBUG)
-
-        self.set_state('{relation_name}.available')
+        log("Registration from slave with hostname %s." % slavehost)
+        self.set_state("{relation_name}.available")
 
     @hook("{requires:jenkins-slave}-relation-{departed}")
     def departed(self):
@@ -68,20 +66,30 @@ class JenkinsMaster(RelationBase):
         # this is pretty safe
         slavehost = remote_unit()
         log("Deleting slave with hostname %s." % slavehost, level=DEBUG)
-        master = Master()
-        master.delete_node(slavehost)
+        nodes = Nodes()
+        nodes.delete(slavehost)
         self.remove_state("{relation_name}.available")
         self.remove_state("{relation_name}.connected")
 
     @hook("{requires:jenkins-slave}-relation-{broken}")
     def broken(self):
         """Indicate the relation is no longer available and not connected."""
-        master = Master()
+        nodes = Nodes()
         for member in relation_ids():
-            member = member.replace('/', '-')
+            member = member.replace("/", "-")
             log("Removing node %s from Jenkins master." % member, level=DEBUG)
-            master.delete_node(member)
+            nodes.delete(member)
 
         self.remove_state("{relation_name}.available")
         self.remove_state("{relation_name}.connected")
         self.remove_state("{relation_name}.tls.available")
+
+    def slaves(self):
+        slaves = []
+        for conversation in self.conversations():
+            slaves.append({
+                "slavehost": conversation.get_remote("slavehost"),
+                "executors": conversation.get_remote("executors"),
+                "labels": conversation.get_remote("labels"),
+            })
+        return [slave for slave in slaves if slave["slavehost"]]
