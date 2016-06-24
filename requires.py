@@ -7,16 +7,14 @@ from charmhelpers.core.hookenv import (
     relation_get,
     relation_ids,
     log,
-    DEBUG,
-    INFO,
 )
 
 from charms.reactive import RelationBase
 from charms.reactive import hook
 from charms.reactive import scopes
 
-from jenkinslib.credentials import Credentials
-from jenkinslib.nodes import Nodes
+from charms.layer.jenkins.credentials import Credentials
+from charms.layer.jenkins.nodes import Nodes
 
 
 class JenkinsMaster(RelationBase):
@@ -46,14 +44,14 @@ class JenkinsMaster(RelationBase):
         missing = [s for s in required_settings if s not in settings]
         if missing:
             log("Not all required relation settings received yet "
-                "(missing=%s) - skipping" % ", ".join(missing), level=INFO)
+                "(missing=%s) - skipping" % ", ".join(missing))
             return
 
         slavehost = settings["slavehost"]
 
         # Double check to see if this has happened yet
         if "x%s" % (slavehost) == "x":
-            log("Slave host not yet defined - skipping", level=INFO)
+            log("Slave host not yet defined - skipping")
             return
 
         log("Registration from slave with hostname %s." % slavehost)
@@ -65,9 +63,9 @@ class JenkinsMaster(RelationBase):
         # Slave hostname is derived from unit name so
         # this is pretty safe
         slavehost = remote_unit()
-        log("Deleting slave with hostname %s." % slavehost, level=DEBUG)
+        log("Deleting slave with hostname %s." % slavehost)
         nodes = Nodes()
-        nodes.delete(slavehost)
+        nodes.delete(slavehost.replace("/", "-"))
         self.remove_state("{relation_name}.available")
         self.remove_state("{relation_name}.connected")
 
@@ -77,7 +75,7 @@ class JenkinsMaster(RelationBase):
         nodes = Nodes()
         for member in relation_ids():
             member = member.replace("/", "-")
-            log("Removing node %s from Jenkins master." % member, level=DEBUG)
+            log("Removing node %s from Jenkins master." % member)
             nodes.delete(member)
 
         self.remove_state("{relation_name}.available")
