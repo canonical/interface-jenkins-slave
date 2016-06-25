@@ -32,7 +32,7 @@ class JenkinsMaster(RelationBase):
         log("Setting relation credentials")
         credentials = Credentials()
         relation_set(username=credentials.username())
-        relation_set(password=credentials.password())
+        relation_set(password=credentials.token())
 
         self.set_state("{relation_name}.connected")
 
