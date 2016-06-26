@@ -14,7 +14,7 @@ from charms.reactive import hook
 from charms.reactive import scopes
 
 from charms.layer.jenkins.credentials import Credentials
-from charms.layer.jenkins.nodes import Nodes
+from charms.layer.jenkins.api import Api
 
 
 class JenkinsMaster(RelationBase):
@@ -64,19 +64,19 @@ class JenkinsMaster(RelationBase):
         # this is pretty safe
         slavehost = remote_unit()
         log("Deleting slave with hostname %s." % slavehost)
-        nodes = Nodes()
-        nodes.delete(slavehost.replace("/", "-"))
+        api = Api()
+        api.delete_node(slavehost.replace("/", "-"))
         self.remove_state("{relation_name}.available")
         self.remove_state("{relation_name}.connected")
 
     @hook("{requires:jenkins-slave}-relation-{broken}")
     def broken(self):
         """Indicate the relation is no longer available and not connected."""
-        nodes = Nodes()
+        api = Api()
         for member in relation_ids():
             member = member.replace("/", "-")
             log("Removing node %s from Jenkins master." % member)
-            nodes.delete(member)
+            api.delete_node(member)
 
         self.remove_state("{relation_name}.available")
         self.remove_state("{relation_name}.connected")
