@@ -18,7 +18,7 @@ from charms.layer.jenkins.api import Api
 
 
 class JenkinsMaster(RelationBase):
-    scope = scopes.GLOBAL
+    scope = scopes.UNIT
 
     @hook("{requires:jenkins-slave}-relation-{joined}")
     def joined(self):
