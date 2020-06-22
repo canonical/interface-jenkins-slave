@@ -27,13 +27,6 @@ class JenkinsMaster(RelationBase):
         log("Setting url relation to http://%s:8080" % address)
         relation_set(url="http://%s:8080" % address)
 
-        # Export credentials to the slave so it can download
-        # slave-agent.jnlp from the master.
-        log("Setting relation credentials")
-        credentials = Credentials()
-        relation_set(username=credentials.username())
-        relation_set(password=credentials.token())
-
         self.set_state("{relation_name}.connected")
 
     @hook("{requires:jenkins-slave}-relation-{changed}")
